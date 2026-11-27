@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Продажи Sky Wool</title>
+  <!-- apply saved theme before first paint, so the page does not flash -->
+  <script>
+    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap">
+  <link rel="icon" type="image/png" href="assets/logo-bear.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="brandbar">
+    <div class="brandbar-inner">
+      <div class="brand"><img class="brand-logo" src="assets/logo-bear.png" alt="" width="52" height="39">Sky Wool</div>
+      <nav class="tabs" role="tablist" aria-label="Разделы">
+        <a role="tab" href="#sales" data-tab="sales" aria-selected="true">Продажи</a>
+        <a role="tab" href="#customers" data-tab="customers" aria-selected="false">Покупатели</a>
+        <a role="tab" href="#marketing" data-tab="marketing" aria-selected="false">Маркетинг</a>
+      </nav>
+      <button type="button" class="link logout" id="logout" hidden>Выйти</button>
+      <div class="seg theme" role="radiogroup" aria-label="Тема">
+        <button type="button" role="radio" data-theme-choice="auto" aria-checked="true">Авто</button>
+        <button type="button" role="radio" data-theme-choice="light" aria-checked="false">Светлая</button>
+        <button type="button" role="radio" data-theme-choice="dark" aria-checked="false">Темная</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="intro">
+      <div>
+        <h1 id="tab-title">Продажи</h1>
+        <p class="muted" id="freshness">Загрузка данных…</p>
+      </div>
+      <div class="filters">
+        <div class="seg periods" role="radiogroup" aria-label="Период">
+          <button type="button" role="radio" data-period="mtd" aria-checked="true">Этот месяц</button>
+          <button type="button" role="radio" data-period="prev_month" aria-checked="false">Прошлый месяц</button>
+          <button type="button" role="radio" data-period="last30" aria-checked="false">30 дней</button>
+          <button type="button" role="radio" data-period="ytd" aria-checked="false">С начала года</button>
+        </div>
+        <div class="range" aria-label="Свой период">
+          <label>с <input type="date" id="date-from"></label>
+          <label>по <input type="date" id="date-to"></label>
+        </div>
+      </div>
+    </section>
+
+    <p class="error" id="error" hidden></p>
+
+    <!-- shown only when the page reads Supabase and nobody is signed in -->
+    <section class="card login" id="login" hidden>
+      <h2>Вход в аналитику Sky Wool</h2>
+      <p class="muted small">Доступ только для сотрудников по приглашению.</p>
+      <form id="login-form" method="post" action="#" novalidate>
+        <label>Email <input type="email" id="login-email" name="email" autocomplete="username" inputmode="email" required></label>
+        <label>Пароль <input type="password" id="login-password" name="password" autocomplete="current-password" required></label>
+        <button type="submit" class="btn" id="login-submit">Войти</button>
+        <p class="error small" id="login-error" hidden></p>
+      </form>
+    </section>
+
+    <div class="tab-panel" id="tab-sales" data-panel="sales" role="tabpanel">
+    <nav class="seg subtabs" role="tablist" aria-label="Разделы продаж">
+      <a role="tab" href="#sales/summary" data-sub="summary" aria-selected="true">Итоги</a>
+      <a role="tab" href="#sales/pulse" data-sub="pulse" aria-selected="false">Рука на пульсе</a>
+      <a role="tab" href="#sales/funnel" data-sub="funnel" aria-selected="false">Воронка сайта</a>
+    </nav>
+
+    <div class="subpanel" data-subpanel="summary">
+    <section class="kpis" aria-live="polite">
+      <div class="hero card">
+        <div class="label">Выручка <span id="period-label"></span></div>
+        <div class="hero-value" id="kpi-revenue">—</div>
+        <div class="delta" id="kpi-revenue-delta"></div>
+        <div class="delta pending-note" id="kpi-pending" hidden></div>
+      </div>
+      <div class="tiles">
+        <div class="tile card"><div class="label">Заказы</div><div class="value" id="kpi-orders">—</div><div class="delta" id="kpi-orders-delta"></div></div>
+        <div class="tile card"><div class="label">Средний чек</div><div class="value" id="kpi-avg">—</div><div class="delta" id="kpi-avg-delta"></div></div>
+        <div class="tile card"><div class="label">Возвраты</div><div class="value" id="kpi-returns">—</div><div class="delta" id="kpi-returns-delta"></div></div>
+        <div class="tile card"><div class="label" title="Отгрузки минус возвраты по дате документа, как отчет МоегоСклада «Прибыльность»">Финансовая выручка</div><div class="value" id="kpi-paid">—</div><div class="delta" id="kpi-paid-delta"></div></div>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Выручка по месяцам</h2>
+        <p class="muted small">Оплаченные заказы по дате заказа, млн ₽, последние 24 месяца · текущий месяц неполный, выделен другим оттенком</p>
+      </div>
+      <div class="chart chart-tall" id="chart-monthly"></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card chart-card">
+        <div class="chart-head chart-head-row">
+          <div>
+            <h2 id="daily-title">Выручка по дням</h2>
+            <p class="muted small" id="daily-sub">Выбранный период</p>
+          </div>
+          <div class="seg small-seg" role="radiogroup" aria-label="Что показать по дням">
+            <button type="button" role="radio" data-daily="paid" aria-checked="true" title="Оплаченные заказы, по дню заказа">Выручка</button>
+            <button type="button" role="radio" data-daily="shipped" aria-checked="false" title="Отгрузки минус возвраты, по дню отгрузки">Финансовая</button>
+          </div>
+        </div>
+        <div class="chart" id="chart-daily"></div>
+      </section>
+      <section class="card chart-card">
+        <div class="chart-head">
+          <h2>Средний чек по месяцам</h2>
+          <p class="muted small">Последние 24 месяца</p>
+        </div>
+        <div class="chart" id="chart-avg"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="table-head">
+        <h2>Таблица по месяцам</h2>
+        <button type="button" class="link" id="toggle-all">Показать все месяцы</button>
+      </div>
+      <div class="table-wrap">
+        <table id="monthly-table">
+          <thead>
+            <tr class="group">
+              <th></th>
+              <th colspan="4" class="grp" title="Оплаченные заказы по дню заказа">Заказы</th>
+              <th colspan="4" class="grp" title="По дню отгрузки, возвраты по дню возврата">Отгрузки</th>
+              <th class="grp" title="Все входящие платежи по дню платежа">Деньги</th>
+            </tr>
+            <tr>
+              <th scope="col">Месяц</th>
+              <th scope="col" title="Оплаченная сумма заказов месяца">Выручка, ₽</th>
+              <th scope="col">Заказы</th>
+              <th scope="col">Средний чек, ₽</th>
+              <th scope="col">Доставка, ₽</th>
+              <th scope="col" class="grp-start" title="Отгружено минус возвраты">Финансовая выручка, ₽</th>
+              <th scope="col">Отгружено, ₽</th>
+              <th scope="col">Возвраты, шт.</th>
+              <th scope="col">Возвраты, ₽</th>
+              <th scope="col" class="grp-start">Поступления, ₽</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Как считаем.</b> Выручка — оплаченная сумма заказов по дате заказа (решение 25.11.2026).
+        Заказ — проведенный заказ в МоемСкладе с суммой больше нуля и оплатой; не считаются бесплатные
+        регистрации (мастер-классы, распродажи) и неоплаченные корзины. Средний чек = выручка / заказы.
+        Финансовая выручка — отгрузки минус возвраты (как отчет МоегоСклада «Прибыльность»): отгрузки по дате
+        отгрузки, возвраты по дате возврата, поэтому возврат октябрьского заказа попадает в ноябрь, если оформлен
+        в ноябре. Поступления — все входящие платежи по дате платежа. Дни считаются по времени Уфы.
+        Сравнение — с таким же по длине периодом перед выбранным (для месяцев — с теми же днями прошлого месяца).</p>
+    </footer>
+    </div>
+
+    <div class="subpanel" data-subpanel="pulse">
+    <p class="muted small pulse-fresh" id="pulse-fresh"></p>
+
+    <!-- plan vs fact of the current month -->
+    <section class="card pulse-plan" aria-live="polite">
+      <div class="chart-head">
+        <h2 id="pulse-plan-title">План-факт месяца</h2>
+        <p class="muted small">Факт — оплаченная сумма заказов, созданных в этом месяце. Рабочие дни — по производственному календарю.</p>
+      </div>
+      <div id="pulse-plan"></div>
+    </section>
+
+    <h3 class="row-title">Сегодня <span class="muted small" id="pulse-today-label"></span></h3>
+    <section class="tiles pulse-today" id="pulse-today" aria-live="polite"></section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Менеджеры</h2>
+        <p class="muted small" id="pulse-mgr-sub">Ответственный за заказ в МоемСкладе. Заказы без ответственного — строка «Сайт / без менеджера».</p>
+      </div>
+      <div class="table-wrap">
+        <table class="channels pulse-mgr" id="pulse-mgr">
+          <thead>
+            <tr class="group">
+              <th></th>
+              <th colspan="2" class="grp">Сегодня</th>
+              <th colspan="3" class="grp" id="pulse-mgr-period">Период</th>
+              <th colspan="4" class="grp">Месяц</th>
+            </tr>
+            <tr>
+              <th scope="col">Сотрудник</th>
+              <th scope="col" class="grp-start" title="Создано заказов сегодня">Заказы</th>
+              <th scope="col" title="Сумма заказов, полностью оплаченных сегодня">Оплачено, ₽</th>
+              <th scope="col" class="grp-start">Заказы</th>
+              <th scope="col" title="Оплаченная сумма заказов, созданных в периоде">Выручка, ₽</th>
+              <th scope="col">Средний чек, ₽</th>
+              <th scope="col" class="grp-start" title="Оплаченная сумма заказов месяца">Выручка, ₽</th>
+              <th scope="col" class="plan-col">План, ₽</th>
+              <th scope="col" class="plan-col">% плана</th>
+              <th scope="col" title="Выручка месяца / прошедшие рабочие дни">В рабочий день, ₽</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Обращения: воронка менеджеров <span class="muted" id="pulse-req-period"></span></h2>
+        <p class="muted small" id="pulse-req-sub">Переписка из amoCRM (MAX, WhatsApp через Wazzup). Обращение — сообщение клиента после суток тишины. С заказом — у сделки есть заказ за 30 дней до обращения или 7 дней после (чаще всего клиент пишет уже после заказа на сайте); «новый» — заказ появился после обращения.</p>
+      </div>
+      <div class="pulse-handoff" id="pulse-req-strip"></div>
+      <div class="table-wrap">
+        <table class="channels pulse-req" id="pulse-req">
+          <thead>
+            <tr>
+              <th scope="col">Кто ответил первым</th>
+              <th scope="col" title="Обращения, на которые сотрудник ответил первым">Обращения</th>
+              <th scope="col" title="Медиана: от первого сообщения клиента до первого ответа">Первый ответ, мин</th>
+              <th scope="col" title="Обращения, по сделке которых появился заказ">С заказом</th>
+              <th scope="col" title="Из обращений с заказом — заказ появился после обращения: продажа через переписку">из них новый</th>
+              <th scope="col" title="Обращения, где хотя бы один заказ полностью оплачен">С оплатой</th>
+              <th scope="col">Оплачено, ₽</th>
+              <th scope="col" class="grp-start" title="Обращения с заказом / обращения">→ заказ</th>
+              <th scope="col" title="Обращения с оплатой / обращения с заказом">заказ → оплата</th>
+              <th scope="col" title="Обращения с оплатой / обращения">→ оплата</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="chart-head">
+          <h2>Очередь отгрузок</h2>
+          <p class="muted small">Полностью оплаченные заказы, которые еще не переданы перевозчику. Нажмите на строку — список заказов.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="channels pulse-click" id="pulse-queue">
+            <thead><tr><th scope="col">Статус</th><th scope="col">Заказов</th><th scope="col">Сумма, ₽</th><th scope="col" title="С момента полной оплаты">Дольше 2 дней</th><th scope="col">Самый старый</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="card">
+        <div class="chart-head">
+          <h2>Требует внимания</h2>
+          <p class="muted small">Нажмите на строку — список заказов.</p>
+        </div>
+        <div class="attention" id="pulse-attention"></div>
+      </section>
+    </div>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Логистика: кто что сделал</h2>
+        <p class="muted small" id="pulse-moves-sub">Смены статусов заказов из журнала МоегоСклада. Число — заказы, которые сотрудник перевел в статус.</p>
+      </div>
+      <div class="pulse-handoff" id="pulse-handoff"></div>
+      <div class="table-wrap">
+        <table class="channels pulse-moves" id="pulse-moves">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Топ-3 товара</h2>
+        <p class="muted small">Товарные строки заказов без доставки, отмен и возвратов. Товар — базовый, все цвета вместе. Вместо количества — число заказов: у товаров разные единицы (мотки, граммы, метры), и их нельзя складывать.</p>
+      </div>
+      <div class="top-grid" id="pulse-top"></div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="table-head">
+        <div class="chart-head">
+          <h2>Остатки по цветам пряжи</h2>
+          <p class="muted small" id="pulse-colors-sub">Каждый цвет пряжи — отдельная модификация товара в МоемСкладе, поэтому остатки и продажи считаются по цветам. Остаток — «Основной склад», доступно = остаток − резерв, «хватит на» = доступно / средние продажи в день за 30 дней.</p>
+        </div>
+        <div class="seg small-seg" role="radiogroup" aria-label="Какие цвета показать">
+          <button type="button" role="radio" data-colors="neg" aria-checked="true">Минус</button>
+          <button type="button" role="radio" data-colors="low" aria-checked="false">Заканчиваются</button>
+          <button type="button" role="radio" data-colors="top" aria-checked="false">Продажи за 30 дней</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="channels" id="pulse-colors">
+          <thead><tr><th scope="col">Товар</th><th scope="col">Цвет</th><th scope="col">Продано за 30 дней</th><th scope="col">Сумма, ₽</th><th scope="col">Остаток</th><th scope="col">Резерв</th><th scope="col">Доступно</th><th scope="col">Хватит на, дн.</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" id="pulse-detail-card" hidden>
+      <div class="table-head">
+        <div class="chart-head">
+          <h2 id="pulse-detail-title">Заказы</h2>
+          <p class="muted small" id="pulse-detail-sub"></p>
+        </div>
+        <button type="button" class="link" id="pulse-detail-close">Скрыть</button>
+      </div>
+      <div class="table-wrap">
+        <table class="channels" id="pulse-detail">
+          <thead id="pulse-detail-head"><tr><th scope="col">Заказ</th><th scope="col">Создан</th><th scope="col">Ответственный</th><th scope="col">Статус</th><th scope="col">Сумма, ₽</th><th scope="col">Оплачено, ₽</th><th scope="col">Полная оплата</th><th scope="col">Ждет</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card pulse-plans-card">
+      <div class="table-head">
+        <div class="chart-head">
+          <h2>Планы</h2>
+          <p class="muted small" id="pulse-plans-sub">План компании и планы менеджеров на месяц. Сохраняются для всех.</p>
+        </div>
+        <label class="muted small">Месяц <select id="pulse-plans-month"></select></label>
+      </div>
+      <form id="pulse-plans-form" class="plans-form"></form>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Рука на пульсе.</b> Источник — МойСклад: заказы, оплаты, отгрузки, статусы и ответственный. Факт плана —
+        оплаченная сумма заказов, созданных в месяце (решение 27.11.2026); рядом — отгружено по заказам месяца и деньги,
+        поступившие в месяце по дате платежа. План на дату = план × прошедшие рабочие дни (включая сегодня) / все рабочие дни.
+        Прогноз = факт до конца вчерашнего рабочего дня / завершенные рабочие дни × рабочие дни месяца.
+        Полная оплата — момент, когда связанные с заказом оплаты закрыли его сумму. Очередь отгрузок — полностью
+        оплаченные заказы в статусах до передачи перевозчику (Новый, Оплачено, Подтвержден, Согласование, Связаться
+        с клиентом, Готов к отправке, Сборка заказа, Сборка Сдэк, Привезти в офис). «Ждут оплаты» — заказы последних
+        30 дней без полной оплаты, кроме отмен и возвратов. Обновление — в будни каждый час с 9 до 19 по Уфе, в выходные в 12, 15 и 18; GitHub иногда запускает с опозданием до часа.
+        Логистика — смены статусов из журнала изменений МоегоСклада (история с 20.11.2026); «через API» — изменения
+        через интеграции и скрипты под учеткой сотрудника; «Передано перевозчику» — первый переход в «В пути к клиенту»
+        после полной оплаты. Валовая прибыль и маржа — отчет МоегоСклада «Прибыльность» за месяц; строки, где себестоимость
+        больше выручки в 3 раза и больше (ошибки себестоимости или единиц), из маржи исключены и показаны в «Требует внимания».
+        Обращения менеджеров (Wazzup) и стоимость доставки Ozon/СДЭК — после доступов.</p>
+    </footer>
+    </div>
+
+    <div class="subpanel" data-subpanel="funnel">
+    <!-- site funnel: steps in a row, conversion on the arrows (same look as the reels funnel) -->
+    <section class="card flow-card" aria-live="polite">
+      <div class="flow-head">
+        <div class="chart-head">
+          <h2>Воронка сайта <span class="muted" id="site-funnel-period"></span></h2>
+          <p class="muted small" id="site-funnel-sub">Только заказы с сайта, которые видит Яндекс Метрика</p>
+        </div>
+        <div class="flow-summary" id="site-funnel-summary"></div>
+      </div>
+      <div class="flow" id="site-funnel-flow"></div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Конверсии по неделям</h2>
+        <p class="muted small" id="site-weeks-sub">Последние 26 недель, неделя с понедельника · у каждой конверсии своя шкала</p>
+      </div>
+      <div class="grid-3 small-multiples">
+        <div><div class="sm-title">C1 · визит → корзина</div><div class="chart chart-small" id="chart-c1"></div></div>
+        <div><div class="sm-title">C2 · корзина → оплата</div><div class="chart chart-small" id="chart-c2"></div></div>
+        <div><div class="sm-title">Оплата оформленных</div><div class="chart chart-small" id="chart-pay"></div></div>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Воронка по каналам <span class="muted" id="site-ch-period"></span></h2>
+        <p class="muted small">Канал — последний значимый источник визита по Метрике. Цвет конверсии: выше или ниже, чем по сайту в целом.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="channels reels site-ch" id="site-ch-table">
+          <thead>
+            <tr>
+              <th scope="col">Канал</th>
+              <th scope="col">Визиты</th>
+              <th scope="col">Корзины</th>
+              <th scope="col">Оформили</th>
+              <th scope="col">Оплатили</th>
+              <th scope="col">Оплачено, ₽</th>
+              <th scope="col" class="cv-h ckey">C1 · визит → корзина</th>
+              <th scope="col" class="cv-h ckey">C2 · корзина → оплата</th>
+              <th scope="col" class="cv-h">Оплата оформленных</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="muted small notes"><p><b>Воронка сайта.</b> Визиты → добавили в корзину → оформили заказ → оплатили. Лид — визит, в котором
+        добавили товар в корзину (цель Метрики «Ecommerce: добавление в корзину»). Оформили — заказ отправлен на сайте
+        (покупка в Метрике, оплаченная или нет). Оплатили — из этих оформлений оплачено в МоемСкладе (тот же номер заказа),
+        по дню оформления. C1 = корзины / визиты, C2 = оплатили / корзины, «Оплата оформленных» = оплатили / оформили
+        (сколько не доходит до оплаты), сквозная = оплатили / визиты. Корзину и оплату человек может сделать в разные
+        визиты, поэтому C2 — приблизительная. Только заказы сайта: ручные заказы менеджеров и заказы, которых нет
+        в Метрике (блокировщики рекламы), в воронку не входят, поэтому оплат в ней меньше, чем заказов в разделе «Итоги» вкладки
+        «Продажи». Данные Метрики — по вчерашний день, надежные с августа 2026.</p>
+    </footer>
+    </div>
+    </div>
+
+    <div class="tab-panel" id="tab-customers" data-panel="customers" role="tabpanel">
+    <section class="tiles tiles-4" aria-live="polite">
+      <div class="tile card"><div class="label">Покупатели <span class="muted small" id="cust-period"></span></div><div class="value" id="kpi-buyers">—</div><div class="delta" id="kpi-buyers-delta"></div></div>
+      <div class="tile card"><div class="label">Новые</div><div class="value" id="kpi-new">—</div><div class="delta" id="kpi-new-delta"></div></div>
+      <div class="tile card"><div class="label">Повторные</div><div class="value" id="kpi-repeat">—</div><div class="delta" id="kpi-repeat-delta"></div></div>
+      <div class="tile card"><div class="label">Оплачено: новые и повторные</div><div class="rev-split" id="kpi-rev-split">—</div></div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Покупатели по месяцам</h2>
+        <p class="muted small">Уникальные покупатели: новые (первая покупка в этом месяце) и вернувшиеся. До мая 2025 магазин был маленьким: 50–400 покупателей в месяц, новых 3–75, поэтому столбики почти не видны.</p>
+        <div class="legend" aria-hidden="true">
+          <span><i class="key s1"></i>Вернувшиеся</span>
+          <span><i class="key s2"></i>Новые</span>
+        </div>
+      </div>
+      <div class="chart chart-tall" id="chart-customers"></div>
+    </section>
+
+    <div class="grid-2 grid-cohort">
+      <section class="card">
+        <div class="chart-head">
+          <h2>Когорты: сколько возвращаются</h2>
+          <p class="muted small">Строка — месяц первой покупки. Столбец — через сколько месяцев. В ячейке — % покупателей когорты, купивших в том месяце.</p>
+        </div>
+        <div class="table-wrap cohort-wrap">
+          <table class="cohort" id="cohort-table"></table>
+        </div>
+      </section>
+      <section class="card">
+        <div class="chart-head">
+          <h2>Когда делают второй заказ</h2>
+          <p class="muted small" id="gap-sub">Покупатели, впервые купившие 1–2 года назад</p>
+        </div>
+        <div class="gap-bars" id="gap-bars"></div>
+      </section>
+    </div>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>LTV: сколько приносит покупатель</h2>
+        <p class="muted small" id="ltv-sub">Накопленная выручка на одного покупателя когорты через N месяцев после первой покупки</p>
+      </div>
+      <div class="tiles tiles-4 ltv-tiles" id="ltv-tiles"></div>
+      <div class="seg small-seg ltv-switch" role="radiogroup" aria-label="Что показать в таблице LTV">
+        <button type="button" role="radio" data-ltv="per" aria-checked="true">На одного покупателя</button>
+        <button type="button" role="radio" data-ltv="total" aria-checked="false">Вся когорта, нарастающим итогом</button>
+      </div>
+      <div class="table-wrap cohort-wrap">
+        <table class="cohort ltv" id="ltv-table"></table>
+      </div>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Покупатели.</b> Один человек может быть заведен в МоемСкладе несколькими карточками, поэтому
+        покупателей склеиваем по зашифрованному телефону (если его нет — по email). Новый покупатель —
+        первая покупка за всю историю с 2019 года. Заказы без телефона и email (меньше 1% выручки)
+        в показатели покупателей не входят.</p>
+      <p><b>LTV.</b> Когорта — месяц первой покупки. LTV через N месяцев = вся выручка покупателей когорты
+        с первой покупки по месяц N включительно / число покупателей когорты (0 — месяц первой покупки).
+        Средние на плитках — взвешенные по числу покупателей, только по когортам с 2025 года и только
+        полностью прошедшие месяцы. Выручка — оплаты, без вычета возвратов и себестоимости.</p>
+    </footer>
+    </div>
+
+    <div class="tab-panel" id="tab-marketing" data-panel="marketing" role="tabpanel">
+    <nav class="seg subtabs" role="tablist" aria-label="Разделы маркетинга">
+      <a role="tab" href="#marketing/reels" data-sub="reels" aria-selected="true">Воронка Reels</a>
+      <a role="tab" href="#marketing/channels" data-sub="channels" aria-selected="false">Каналы</a>
+      <a role="tab" href="#marketing/posts" data-sub="posts" aria-selected="false">Публикации</a>
+    </nav>
+
+    <div class="subpanel" data-subpanel="reels">
+
+    <!-- reels funnel: one card, steps in a row, conversion on the arrow between steps -->
+    <section class="card flow-card" aria-live="polite">
+      <div class="flow-head">
+        <div class="chart-head">
+          <h2>Воронка Reels <span class="muted" id="reel-period"></span></h2>
+          <p class="muted small">На стрелках — конверсия из предыдущего шага и изменение к прошлому такому же периоду</p>
+        </div>
+        <div class="flow-summary" id="reel-summary"></div>
+      </div>
+      <div class="flow" id="reel-flow"></div>
+    </section>
+    <p class="muted small first-touch-note">По первому переходу (впервые пришли на сайт из бота ролика, купили позже по любой ссылке): <b id="kpi-reel-orders-first">—</b></p>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Ролики: бот → сайт → заказ</h2>
+        <p class="muted small" id="reel-sub">Ролики выбранного периода, новые сверху. Заказы и выручка копятся, пока люди переходят по ссылке из бота.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="channels reels reel-sticky" id="reel-table">
+          <thead>
+            <tr class="group">
+              <th colspan="8"></th>
+              <th colspan="3" class="conv-group">Конверсии</th>
+            </tr>
+            <tr>
+              <th scope="col">Ролик</th>
+              <th scope="col">Кодовое слово / товар</th>
+              <th scope="col">Просмотры</th>
+              <th scope="col" title="Уникальные авторы комментариев с кодовым словом">Написали слово</th>
+              <th scope="col" title="Подписчики BotHelp с тегом ролика (приходят и из комментариев, и из директа и сторис)">Пришли в бота</th>
+              <th scope="col" title="Переходы на сайт по ссылке из бота">Визиты</th>
+              <th scope="col">Заказы</th>
+              <th scope="col" class="share-col">Выручка, ₽</th>
+              <th scope="col" class="cv-h ckey" title="Пришли в бота / просмотры. При наведении на ячейку — доля написавших слово">C1 · просмотр → бот</th>
+              <th scope="col" class="cv-h ckey" title="Оплаченные заказы / пришли в бота. При наведении на ячейку — бот → сайт и сайт → заказ">C2 · бот → оплата</th>
+              <th scope="col" class="cv-h" title="Выручка / просмотры × 1 000">₽ на 1 000 просм.</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Воронка Reels.</b> Ролик узнаем по дате: тег в BotHelp «рилс_товар_ДДММГГ» и метка ссылки
+        из бота «bot_ГГГГММДД» в Метрике. «Пришли в бота» — подписчики BotHelp с тегом ролика (тег ставится не во всех ботах,
+        поэтому цифра может быть ниже реальной). В бота приходят не только из комментариев, но и из директа,
+        сторис и старых постов с тем же кодовым словом, поэтому пришедших в бота бывает больше, чем написавших слово;
+        их долю считаем от просмотров. Просмотры, охват и комментарии — Instagram API, накопленные
+        на дату загрузки. «Написали кодовое слово» — уникальные авторы комментариев, где одно слово совпадает
+        с кодовым словом из подписи ролика (или его первыми 4 буквами); считаем для роликов с сентября 2026.
+        Комментаторов храним только как зашифрованный ID, без имен и текстов. «Из них новые» — впервые подписались на бота не раньше чем за день до ролика.
+        Визиты — переходы на сайт по ссылке из бота в Instagram. Заказы и выручка — оплаченные заказы МоегоСклада,
+        у которых последний значимый переход был по ссылке ролика. «Первый переход» — заказы людей, чей самый первый
+        визит на сайт был по ссылке из бота ролика. Покупки через другое приложение (Telegram, MAX) Метрика
+        с роликом связать не может, поэтому настоящий вклад роликов выше обеих цифр.
+        Одна и та же ссылка в Метрике иногда датирована на день раньше или позже тега в BotHelp; тогда ее данные
+        переносим на дату тега.</p>
+    </footer>
+    </div>
+
+    <div class="subpanel" data-subpanel="channels">
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Откуда пришли заказы <span class="muted" id="ch-period"></span></h2>
+        <p class="muted small" id="ch-sub">Оплаченные заказы МоегоСклада, канал по Яндекс Метрике (последний значимый переход)</p>
+      </div>
+      <div class="table-wrap">
+        <table class="channels" id="channel-table">
+          <thead>
+            <tr>
+              <th scope="col">Канал</th>
+              <th scope="col" class="share-col">Доля выручки</th>
+              <th scope="col">Выручка, ₽</th>
+              <th scope="col">К прошлому периоду</th>
+              <th scope="col">Заказы</th>
+              <th scope="col">Новые покупатели</th>
+              <th scope="col">Визиты</th>
+              <th scope="col">Конверсия в заказ</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Доля выручки по каналам, по месяцам</h2>
+        <p class="muted small">С июня 2026 (счетчик Метрики стоит с 21 мая) · текущий месяц неполный</p>
+      </div>
+      <div class="table-wrap cohort-wrap">
+        <table class="cohort mix" id="channel-months"></table>
+      </div>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Каналы.</b> Деньги и заказы берем из МоегоСклада, а Метрика только подсказывает, откуда пришел заказ
+        с сайта (по номеру заказа). Канал определяем по UTM-метке, а если ее нет, то по типу перехода
+        (поиск, прямой заход, соцсеть). «Менеджер (вручную)» — заказы, заведенные вручную, а не на сайте.
+        «Не определен» — заказ с сайта, которого нет в Метрике (блокировщик рекламы, отключенные cookies).
+        Конверсия — оплаченные заказы канала / визиты на сайт из этого канала, до последнего дня с данными Метрики.
+        Метрика не видит переход между встроенными браузерами Instagram и Telegram (у них разные cookies),
+        поэтому заказ человека, который пришел из ролика, а купил позже по ссылке из Telegram, засчитывается Telegram.</p>
+    </footer>
+    </div>
+
+    <div class="subpanel" data-subpanel="posts">
+
+    <section class="card chart-card">
+      <div class="chart-head">
+        <h2>Каналы публикаций <span class="muted" id="pub-period"></span></h2>
+        <p class="muted small">Посты, сторис и баннеры с датой в метке (utm_content), вышедшие в выбранный период. Внизу — ссылки без даты и мастер-классы (метка mk) за этот же период.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="channels" id="pub-channels">
+          <thead>
+            <tr>
+              <th scope="col">Канал</th>
+              <th scope="col">Публикаций</th>
+              <th scope="col">Визиты</th>
+              <th scope="col">Заказы</th>
+              <th scope="col" class="share-col">Выручка, ₽</th>
+              <th scope="col">На публикацию, ₽</th>
+              <th scope="col">Новые покупатели</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <div class="table-head">
+        <div class="chart-head">
+          <h2>Какие публикации продают</h2>
+          <p class="muted small">Сортировка по выручке. Заказы копятся, пока люди переходят по ссылке.</p>
+        </div>
+        <button type="button" class="link" id="pub-toggle">Показать все</button>
+      </div>
+      <div class="table-wrap">
+        <table class="channels" id="pub-table">
+          <thead>
+            <tr>
+              <th scope="col">Дата</th>
+              <th scope="col">Канал</th>
+              <th scope="col">Тип</th>
+              <th scope="col">Товары (метка ссылки)</th>
+              <th scope="col">Визиты</th>
+              <th scope="col">Заказы</th>
+              <th scope="col">Конверсия</th>
+              <th scope="col" class="share-col">Выручка, ₽</th>
+              <th scope="col">Новые покупатели</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="muted small notes">
+      <p><b>Публикации.</b> Публикация — канал + метка utm_content с датой, например post_20261110_01
+        (пост), stories_…, banner_…. Один и тот же пост в MAX и Telegram — две строки. Заказы и выручка —
+        оплаченные заказы МоегоСклада, у которых последний значимый переход был по ссылке публикации.
+        Метки без даты («post», «skidki» и т. п.) и ссылка на мастер-классы («mk») — две нижние строки первой таблицы, за выбранный период (визиты по дню визита, заказы по дню заказа).</p>
+    </footer>
+    </div>
+
+    </div>
+  </main>
+
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
